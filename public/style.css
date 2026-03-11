@@ -49,7 +49,10 @@
     background: var(--header-bg, rgba(10,8,0,0.92)); backdrop-filter: blur(20px);
     box-shadow: 0 1px 0 rgba(201,168,76,0.1);
   }
-  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.25rem; letter-spacing: -0.5px; color: var(--logo-text, #f5f0e8); }
+  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.25rem; letter-spacing: -0.5px; background: linear-gradient(90deg, #c9a84c 0%, #f5e17a 40%, #c9a84c 60%, #a8852a 100%);
+background-size: 200% auto;
+-webkit-background-clip: text; -webkit-text-fill-color: transparent;
+background-clip: text; }
   .logo span {
     background: linear-gradient(90deg, #c9a84c 0%, #f5e17a 40%, #c9a84c 60%, #a8852a 100%);
     background-size: 200% auto;
