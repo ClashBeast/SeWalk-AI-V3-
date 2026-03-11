@@ -67,8 +67,8 @@
 </header>
 
 <div class="mode-selector">
-  <button class="mode-btn active" data-mode="home" onclick="switchMode(this)">
-    <span class="icon">✦</span><span class="label">SeWalk AI</span>
+  <button class="mode-btn active" data-mode="home" onclick="switchMode(this)" style="--mode-color:#4fc3f7;">
+    <span class="icon" style="color:#4fc3f7;text-shadow:0 0 12px rgba(79,195,247,0.8),0 0 24px rgba(79,195,247,0.4);font-size:1.1rem;">✦</span><span class="label">SeWalk AI</span>
   </button>
   <button class="mode-btn" data-mode="gym" onclick="switchMode(this)">
     <span class="icon">🏋️</span><span class="label">Gym Trainer</span>
@@ -116,58 +116,7 @@
       <span>Settings</span>
     </div>
 
-    <!-- CRITICAL ANALYSIS (below) -->
-    <div class="analysis-section">
-      <h2>Critical Analysis</h2>
 
-      <div class="analysis-card">
-        <h3>💡 Core Idea Strength</h3>
-        <p>Multi-persona AI with persistent memory per mode is a genuinely differentiated concept. The market mostly offers one-size-fits-all chatbots — mode-specific context is a real gap.</p>
-      </div>
-      <div class="analysis-card">
-        <h3>✅ Strengths</h3>
-        <ul>
-          <li><span class="pill green">Strong</span>Clear niche personas — each mode has a real user base</li>
-          <li><span class="pill green">Strong</span>JEE Tutor is underserved & high-demand in India</li>
-          <li><span class="pill green">Strong</span>Mode-specific memory feels premium vs generic AI</li>
-          <li><span class="pill green">Strong</span>Companion mode creates retention & daily habit</li>
-          <li><span class="pill green">Strong</span>Mode switching = flexibility without losing context</li>
-        </ul>
-      </div>
-      <div class="analysis-card">
-        <h3>⚠️ Critical Risks</h3>
-        <ul>
-          <li><span class="pill red">Hard</span>Long-term memory needs a backend (e.g. Supabase + vector store)</li>
-          <li><span class="pill yellow">Watch</span>Companion mode has ethical/emotional dependency risks</li>
-          <li><span class="pill yellow">Watch</span>JEE accuracy must be very high — errors harm students</li>
-          <li><span class="pill red">Hard</span>Vibe-coding alone won't handle memory persistence</li>
-        </ul>
-      </div>
-      <div class="analysis-card">
-        <h3>🛠️ Build Priorities</h3>
-        <ul>
-          <li><span class="pill blue">V1</span>Mode switcher UI + basic persona prompts</li>
-          <li><span class="pill blue">V1</span>In-session memory (context window)</li>
-          <li><span class="pill blue">V2</span>Persistent memory via DB (per mode, per user)</li>
-          <li><span class="pill blue">V2</span>Auth + user profiles</li>
-          <li><span class="pill blue">V3</span>Cross-mode memory (optional, toggleable)</li>
-        </ul>
-      </div>
-      <div class="analysis-card">
-        <h3>🔑 Key Tech Decisions</h3>
-        <p style="margin-bottom:8px">For vibe-coding, recommended stack:</p>
-        <ul>
-          <li>Frontend: <strong style="color:#f0f0f5">Next.js or Bolt.new</strong></li>
-          <li>AI: <strong style="color:#f0f0f5">Claude API or OpenAI</strong></li>
-          <li>Memory: <strong style="color:#f0f0f5">Supabase (DB) + Mem0 or pgvector</strong></li>
-          <li>Auth: <strong style="color:#f0f0f5">Clerk or Supabase Auth</strong></li>
-        </ul>
-      </div>
-      <div class="analysis-card">
-        <h3>🎯 Monetization Angle</h3>
-        <p>Free tier with 3 modes → Paid unlocks all 5 + unlimited sessions. JEE Tutor alone could be a paid standalone product in India.</p>
-      </div>
-    </div>
   </div>
 
   <!-- ===== CHAT AREA ===== -->
