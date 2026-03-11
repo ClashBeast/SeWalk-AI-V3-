@@ -1288,3 +1288,75 @@
     from { transform: scale(0.7); opacity: 0; }
     to   { transform: scale(1);   opacity: 1; }
   }
+
+/* ═══════════════════════════════════════════════
+   SeWalk AI V2 — Home mode blue glow + sidebar
+   ═══════════════════════════════════════════════ */
+
+/* Home mode button — blue glowing ✦ */
+.mode-btn[data-mode="home"] {
+  border-color: rgba(79, 195, 247, 0.35);
+  background: rgba(79, 195, 247, 0.06);
+}
+.mode-btn[data-mode="home"].active {
+  border-color: rgba(79, 195, 247, 0.6);
+  background: rgba(79, 195, 247, 0.12);
+  box-shadow: 0 0 16px rgba(79, 195, 247, 0.2);
+}
+.mode-btn[data-mode="home"] .icon {
+  color: #4fc3f7 !important;
+  text-shadow: 0 0 10px rgba(79, 195, 247, 0.9), 0 0 22px rgba(79, 195, 247, 0.5);
+  font-size: 1.15rem;
+  animation: homeGlow 2.5s ease-in-out infinite alternate;
+}
+.mode-btn[data-mode="home"] .label {
+  color: #4fc3f7;
+}
+@keyframes homeGlow {
+  from { text-shadow: 0 0 8px rgba(79,195,247,0.7), 0 0 18px rgba(79,195,247,0.3); }
+  to   { text-shadow: 0 0 14px rgba(79,195,247,1),  0 0 30px rgba(79,195,247,0.6), 0 0 50px rgba(79,195,247,0.2); }
+}
+
+/* Light mode adjustments */
+[data-theme="light"] .mode-btn[data-mode="home"] {
+  border-color: rgba(2, 136, 209, 0.4);
+  background: rgba(2, 136, 209, 0.07);
+}
+[data-theme="light"] .mode-btn[data-mode="home"] .icon {
+  color: #0288d1 !important;
+  text-shadow: 0 0 10px rgba(2, 136, 209, 0.8), 0 0 22px rgba(2, 136, 209, 0.4);
+}
+[data-theme="light"] .mode-btn[data-mode="home"] .label {
+  color: #0288d1;
+}
+
+/* Sidebar — remove padding/gap left by critical analysis */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+}
+.sessions-section {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* Settings at absolute bottom of sidebar */
+.sidebar-settings-btn {
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+/* Guest locked persona buttons */
+.mode-btn.guest-locked {
+  opacity: 0.55;
+  position: relative;
+}
+.mode-btn.guest-locked::after {
+  content: '🔒';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 0.6rem;
+  line-height: 1;
+}
