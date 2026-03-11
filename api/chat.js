@@ -37,8 +37,9 @@ const MODEL_REGISTRY = {
 
 const DEFAULT_MODEL = 'walk-pulse';
 
-// ── In-memory rate limiter ────────────────────────────────────
-const rateLimitStore = new Map();
+// ── Persistent rate limiter (Supabase) ─────────────────────
+// Falls back to in-memory if SUPABASE vars not set (local dev)
+const _memStore = new Map();
 
 function getClientIP(req) {
   return (
@@ -50,12 +51,34 @@ function getClientIP(req) {
   );
 }
 
-function checkRateLimit(key, maxReqs, windowMs) {
+async function checkRateLimit(key, maxReqs, windowMs) {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_KEY; // service key, NOT anon key
   const now = Date.now();
-  const entry = rateLimitStore.get(key) || { count: 0, resetAt: now + windowMs };
+
+  if (supabaseUrl && supabaseKey) {
+    try {
+      const res = await fetch(`${supabaseUrl}/rest/v1/rpc/sewalk_rate_check`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify({ p_key: key, p_max: maxReqs, p_window_ms: windowMs }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return { allowed: data.allowed, resetAt: data.reset_at };
+      }
+    } catch { /* fall through to memory fallback */ }
+  }
+
+  // ── In-memory fallback (local dev / Supabase unreachable) ──
+  const entry = _memStore.get(key) || { count: 0, resetAt: now + windowMs };
   if (now > entry.resetAt) { entry.count = 0; entry.resetAt = now + windowMs; }
   entry.count++;
-  rateLimitStore.set(key, entry);
+  _memStore.set(key, entry);
   return { allowed: entry.count <= maxReqs, resetAt: entry.resetAt };
 }
 
