@@ -56,37 +56,25 @@ const IMAGE_MODELS = {
   'walk-wan-video':   { real: 'Wan-AI/Wan2.6-image',                   route: 'together',   free: false },
 };
 
-// ── Persistent rate limiter (Supabase) ─────────────────────
-// Falls back to in-memory if SUPABASE vars not set (local dev)
-const _memStore = new Map();
+// ── NEW: In-memory rate limiter — 20 image gen requests/hr per IP ─────────
+const rateLimitStore = new Map();
 
-async function checkRateLimit(key, maxReqs, windowMs) {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+function getClientIP(req) {
+  return (
+    req.headers['cf-connecting-ip'] ||
+    req.headers['x-real-ip'] ||
+    req.headers['x-forwarded-for']?.split(',')[0].trim() ||
+    req.socket?.remoteAddress ||
+    'unknown'
+  );
+}
+
+function checkRateLimit(key, maxReqs, windowMs) {
   const now = Date.now();
-
-  if (supabaseUrl && supabaseKey) {
-    try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/rpc/sewalk_rate_check`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
-        },
-        body: JSON.stringify({ p_key: key, p_max: maxReqs, p_window_ms: windowMs }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        return { allowed: data.allowed, resetAt: data.reset_at };
-      }
-    } catch { /* fall through to memory fallback */ }
-  }
-
-  const entry = _memStore.get(key) || { count: 0, resetAt: now + windowMs };
+  const entry = rateLimitStore.get(key) || { count: 0, resetAt: now + windowMs };
   if (now > entry.resetAt) { entry.count = 0; entry.resetAt = now + windowMs; }
   entry.count++;
-  _memStore.set(key, entry);
+  rateLimitStore.set(key, entry);
   return { allowed: entry.count <= maxReqs, resetAt: entry.resetAt };
 }
 
@@ -204,7 +192,7 @@ async function generateTogether(modelId, prompt) {
 
 // ── Main handler ──────────────────────────────────────────────
 export default async function handler(req, res) {
-  const origin = req.headers['origin'] || '';
+  const origin = req.headers['origin'] || req.headers['referer'] || '';
 
   // NEW: fixed from startsWith (weaker) to exact match
   const isAllowed = ALLOWED_ORIGINS.includes(origin);
