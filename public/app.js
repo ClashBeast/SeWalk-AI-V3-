@@ -1366,6 +1366,21 @@ const GameManager = (() => {
 
 
 async function init() {
+  // Always apply the current mode's UI on load
+  const m = modes[currentMode];
+  if (m) {
+    const titleEl  = document.getElementById('modeTitle');
+    const descEl   = document.getElementById('modeDesc');
+    const badgeEl  = document.getElementById('headerBadge');
+    const inputEl  = document.getElementById('userInput');
+    const activeBtn = document.querySelector(`.mode-btn[data-mode="${currentMode}"]`);
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    if (activeBtn) activeBtn.classList.add('active');
+    if (titleEl)  { titleEl.textContent = m.title; titleEl.style.color = m.color; }
+    if (descEl)   { descEl.textContent  = m.desc; }
+    if (badgeEl)  { badgeEl.textContent = m.title; badgeEl.style.color = m.color; badgeEl.style.borderColor = m.color; }
+    if (inputEl)  { inputEl.placeholder = m.placeholder; }
+  }
   await loadSessionStore(currentMode);
   const sessions = getSortedSessions(currentMode);
   if (sessions.length > 0) {
