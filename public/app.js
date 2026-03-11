@@ -85,8 +85,14 @@ function updateAuthUI() {
     if (guestBadge && guestText) {
       guestBadge.style.display = remaining > 0 ? 'block' : 'none';
       guestText.textContent = `${remaining} free msg${remaining !== 1 ? 's' : ''} left`;
-      guestText.style.color = remaining <= 3 ? '#f87171' : '';
+      guestText.style.color = remaining <= 1 ? '#f87171' : '';
     }
+    // Mark persona buttons as locked for guests
+    document.querySelectorAll('.mode-btn:not([data-mode="home"])').forEach(b => b.classList.add('guest-locked'));
+  }
+  // Remove locks if signed in
+  if (currentUser) {
+    document.querySelectorAll('.mode-btn.guest-locked').forEach(b => b.classList.remove('guest-locked'));
   }
 }
 
@@ -282,7 +288,7 @@ const systemPrompts = {
 };
 
 const modes = {
-  home:      { title: 'SeWalk AI',      desc: 'Your all-in-one AI assistant. Ask anything.',  color: 'var(--accent)',    icon: '✦',  placeholder: 'Ask SeWalk AI anything...', greeting: "Hey! I'm SeWalk AI. Ask me anything — I'm here to help with whatever you need." },
+  home:      { title: 'SeWalk AI', desc: 'Your all-in-one AI assistant. Ask anything.', color: 'var(--accent)', icon: '✦', placeholder: 'Ask SeWalk AI anything...', greeting: "Hey! I'm SeWalk AI. Ask me anything — I'm here to help with whatever you need." },
   gym:       { title: '🏋️ Gym Trainer',   desc: 'Personalized fitness coaching — remembers your goals, splits, and progress.',       color: 'var(--gym)',       icon: '🏋️', placeholder: 'Ask your Gym Trainer...',   greeting: "Hey! I'm your Gym Trainer. What are your fitness goals? I'll remember everything across our sessions." },
   lib:       { title: '📚 Librarian',      desc: 'Deep reading guidance, book recs, and literary analysis tailored to your taste.',   color: 'var(--lib)',       icon: '📚', placeholder: 'Ask the Librarian...',      greeting: "Welcome! I'm your Librarian. Tell me what you love to read and I'll remember your taste across every visit." },
   music:     { title: '🎛️ Music Producer', desc: 'Beat-making, mixing, theory, and creative direction for your sound.',               color: 'var(--music)',     icon: '🎛️', placeholder: 'Ask your Producer...',      greeting: "Yo, welcome to the studio! What are you working on? I'll keep track of your projects and sound." },
@@ -863,6 +869,12 @@ async function sendMsg() {
 //  SWITCH MODE
 // =============================================
 async function switchMode(btn) {
+  // Guest lock — only allow home mode
+  if (!currentUser && btn.dataset.mode !== 'home') {
+    showToast('🔒 Sign in to unlock AI personas!');
+    openAuthModal();
+    return;
+  }
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   currentMode = btn.dataset.mode;
