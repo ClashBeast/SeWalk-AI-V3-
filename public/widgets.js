@@ -1046,7 +1046,14 @@ function renderConverterWidget(c) {
 // ─────────────────────────────────────────────────────────────
 //  WIDGET TRAY
 // ─────────────────────────────────────────────────────────────
-function openWidgetTray()  { document.getElementById('swTrayOverlay')?.classList.add('open'); }
+function openWidgetTray() {
+  if (typeof currentUser !== 'undefined' && !currentUser) {
+    showToast('🔒 Sign in to use the Widget Tray!');
+    openAuthModal();
+    return;
+  }
+  document.getElementById('swTrayOverlay')?.classList.add('open');
+}
 function closeWidgetTray() { document.getElementById('swTrayOverlay')?.classList.remove('open'); }
 
 function promptTray(prefix) {
