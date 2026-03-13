@@ -3086,7 +3086,14 @@ window.refreshSettingsUI = function() {
 // =============================================
 //  SEND BUTTON — dynamic voice / send toggle
 // =============================================
-const VOICE_ICON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
+const VOICE_ICON = `
+<span class="sb-wave-orb">
+  <span class="sb-bar"></span>
+  <span class="sb-bar"></span>
+  <span class="sb-bar"></span>
+  <span class="sb-bar"></span>
+  <span class="sb-bar"></span>
+</span>`;
 const SEND_ICON  = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>`;
 
 function initSendBtnToggle() {
@@ -3122,7 +3129,7 @@ document.addEventListener('DOMContentLoaded', initSendBtnToggle);
 let sttRecognition = null;
 let sttActive = false;
 
-function toggleMicSTT() {
+async function toggleMicSTT() {
   if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
     showToast('⚠️ Speech recognition not supported in this browser.');
     return;
@@ -3133,14 +3140,12 @@ function toggleMicSTT() {
   }
 
   // Explicitly request mic permission first — triggers browser popup
-  navigator.mediaDevices.getUserMedia({ audio: true })
-    .then(stream => {
-      stream.getTracks().forEach(t => t.stop()); // release stream, just needed the permission
-      _startSTTRecognition();
-    })
-    .catch(() => {
-      showToast('⚠️ Microphone permission denied. Please allow mic access.');
-    });
+  const allowed = await requestMicPermission();
+  if (!allowed) {
+    showToast('⚠️ Microphone permission denied. Please allow mic access in browser settings.');
+    return;
+  }
+  _startSTTRecognition();
 }
 
 function _startSTTRecognition() {
@@ -3232,24 +3237,22 @@ function toggleVAMic() {
   }
 }
 
-function startVAListening() {
+async function startVAListening() {
   if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
     document.getElementById('vaStatus').textContent = '⚠️ Speech recognition not supported.';
     return;
   }
 
   // Explicitly request mic permission first — triggers browser popup
-  navigator.mediaDevices.getUserMedia({ audio: true })
-    .then(stream => {
-      stream.getTracks().forEach(t => t.stop());
-      _startVARecognition();
-    })
-    .catch(() => {
-      document.getElementById('vaStatus').textContent = '⚠️ Mic permission denied. Please allow and try again.';
-      document.getElementById('vaMicBtn').classList.add('muted');
-      vaMicOn = false;
-      setVAWaveform('idle');
-    });
+  const allowed = await requestMicPermission();
+  if (!allowed) {
+    document.getElementById('vaStatus').textContent = '⚠️ Mic permission denied. Allow mic in browser settings.';
+    document.getElementById('vaMicBtn').classList.add('muted');
+    vaMicOn = false;
+    setVAWaveform('idle');
+    return;
+  }
+  _startVARecognition();
 }
 
 function _startVARecognition() {
@@ -3365,6 +3368,17 @@ function setVAWaveform(state) {
       b.style.opacity = '0.3';
     }
   });
+}
+
+// Shared mic permission requester
+async function requestMicPermission() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(t => t.stop());
+    return true;
+  } catch(e) {
+    return false;
+  }
 }
 
 // Load voices async (Chrome loads them async)
