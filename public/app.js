@@ -3131,6 +3131,19 @@ function toggleMicSTT() {
     sttRecognition && sttRecognition.stop();
     return;
   }
+
+  // Explicitly request mic permission first — triggers browser popup
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream => {
+      stream.getTracks().forEach(t => t.stop()); // release stream, just needed the permission
+      _startSTTRecognition();
+    })
+    .catch(() => {
+      showToast('⚠️ Microphone permission denied. Please allow mic access.');
+    });
+}
+
+function _startSTTRecognition() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   sttRecognition = new SR();
   sttRecognition.continuous = false;
@@ -3224,6 +3237,22 @@ function startVAListening() {
     document.getElementById('vaStatus').textContent = '⚠️ Speech recognition not supported.';
     return;
   }
+
+  // Explicitly request mic permission first — triggers browser popup
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream => {
+      stream.getTracks().forEach(t => t.stop());
+      _startVARecognition();
+    })
+    .catch(() => {
+      document.getElementById('vaStatus').textContent = '⚠️ Mic permission denied. Please allow and try again.';
+      document.getElementById('vaMicBtn').classList.add('muted');
+      vaMicOn = false;
+      setVAWaveform('idle');
+    });
+}
+
+function _startVARecognition() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   vaRecognition = new SR();
   vaRecognition.continuous = false;
