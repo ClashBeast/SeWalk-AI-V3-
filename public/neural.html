@@ -196,6 +196,14 @@ canvas.addEventListener('touchmove', e => {
 });
 canvas.addEventListener('touchend', () => { drawing = false; predict(); });
 
+// Double-tap to clear on mobile
+let lastTap = 0;
+canvas.addEventListener('touchstart', e => {
+  const now = Date.now();
+  if (now - lastTap < 300) clearCanvas();
+  lastTap = now;
+}, { passive: true });
+
 function clearCanvas() {
   ctx.fillStyle = 'black';
   ctx.fillRect(0, 0, 280, 280);
