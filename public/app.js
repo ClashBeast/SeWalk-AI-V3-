@@ -42,6 +42,7 @@ if (_supabase) {
     }
     if (event === 'SIGNED_OUT') {
       guestMsgCount = 0;
+      resetGuestMsgCount();
       showToast('👋 Signed out');
       updateAuthUI();
     }
@@ -65,6 +66,7 @@ function updateAuthUI() {
     if (guestBadge) guestBadge.style.display = 'none';
     // Reset guest limit counter when signed in
     guestMsgCount = 0;
+    resetGuestMsgCount();
     if (chatLock) chatLock.classList.remove('visible');
     // Send any pending message that was queued before auth
     if (pendingMessage) {
@@ -232,9 +234,13 @@ let currentMode = 'home';
 let currentSessionId = null;
 let pendingMessage = null; // stores message queued before auth/API key
 
-// Guest message limit
-const GUEST_MSG_LIMIT = 3;
+// Guest message limit — resets on reload intentionally (low friction for guests)
+const GUEST_MSG_LIMIT = 10;
 let guestMsgCount = 0;
+
+function resetGuestMsgCount() {
+  guestMsgCount = 0;
+}
 
 // sessionStore[mode] = { [id]: { id, title, createdAt, messages: [] } }
 const sessionStore = { home: {}, gym: {}, lib: {}, music: {}, jee: {}, companion: {} };
