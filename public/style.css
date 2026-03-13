@@ -1365,3 +1365,26 @@ background-clip: text; }
   font-size: 0.6rem;
   line-height: 1;
 }
+.game-card.guest-locked {
+  opacity: 0.6;
+  position: relative;
+  cursor: pointer;
+}
+.game-card.guest-locked::after {
+  content: '🔒 Sign in to unlock';
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(10,8,0,0.85);
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: 99px;
+  padding: 3px 10px;
+  pointer-events: none;
+}
+.game-card.guest-locked .game-play-btn {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
