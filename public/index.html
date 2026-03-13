@@ -38,7 +38,7 @@
       <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       Chat
     </button>
-    <button class="view-toggle-btn" id="btnGames" onclick="if(!currentUser){showToast('🔒 Sign in to access Cognitive Hub!');openAuthModal();return;}switchView('games')">
+    <button class="view-toggle-btn" id="btnGames" onclick="switchView('games')">
       <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
       Cognitive Hub
     </button>
@@ -60,7 +60,7 @@
       <span class="email-text" id="headerEmail"></span>
       <button class="auth-signout-btn" onclick="authSignOut()">Sign out</button>
     </div>
-    <a href="neural.html" target="_blank" onclick="if(!currentUser){event.preventDefault();showToast('🔒 Sign in to access Neural!');openAuthModal();}" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:var(--accent);font-size:0.78rem;font-weight:600;text-decoration:none;font-family:'DM Sans',sans-serif;">✦ Neural</a>
+    <a href="neural.html" target="_blank" onclick="" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:var(--accent);font-size:0.78rem;font-weight:600;text-decoration:none;font-family:'DM Sans',sans-serif;">✦ Neural</a>
     <button id="themeToggle" onclick="toggleTheme()" title="Toggle dark/light mode" style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:var(--accent);border-radius:99px;padding:7px 12px;cursor:pointer;font-size:0.85rem;transition:all 0.2s;">🌙</button>
     <div class="mode-badge" id="headerBadge" style="color:var(--accent);border-color:var(--accent);">SeWalk AI</div>
   </div>
@@ -145,7 +145,7 @@
       </div>
       <div id="imagePreviewBar" style="display:none;padding:8px 20px 0;"></div>
       <div class="input-row">
-        <button class="plus-btn" id="plusBtn" onclick="if(!currentUser){showToast('🔒 Sign in to upload files & create images!');openAuthModal();return;}toggleCreatePanel()" title="Create & Analyze">
+        <button class="plus-btn" id="plusBtn" onclick="toggleCreatePanel()" title="Create & Analyze">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
         <input type="file" id="imageUploadInput" accept="image/*" style="display:none" onchange="handleImageUpload(event)"/>
@@ -236,7 +236,7 @@
             <div class="create-item-arrow">→</div>
           </div>
 
-          <div class="create-item" onclick="triggerVideoUpload()">
+          <div class="create-item" onclick="if(!currentUser){showToast('🔒 Sign in to upload videos!');openAuthModal();return;}triggerVideoUpload()">
             <div class="create-item-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="7" width="15" height="14" rx="2"/>
@@ -266,7 +266,7 @@
             <div class="create-item-arrow" id="webSearchStatus">→</div>
           </div>
 
-          <div class="create-item" onclick="activateImageCreate()">
+          <div class="create-item" onclick="if(!currentUser){showToast('🔒 Sign in to generate images!');openAuthModal();return;}activateImageCreate()">
             <div class="create-item-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2"/>
