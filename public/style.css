@@ -301,11 +301,39 @@ background-clip: text; }
 
   /* ── Send button — voice mode vs send mode ── */
   .send-btn.voice-mode {
-    background: #1a1a1a;
-    border: 2px solid rgba(201,168,76,0.4);
-    box-shadow: 0 0 20px rgba(201,168,76,0.2);
+    background: rgba(201,168,76,0.15);
+    border: 1.5px solid rgba(201,168,76,0.5);
+    box-shadow: 0 0 16px rgba(201,168,76,0.25);
+    width: 40px; height: 40px;
   }
-  .send-btn.voice-mode svg { stroke: var(--accent); }
+  .send-btn.voice-mode:hover {
+    background: rgba(201,168,76,0.25);
+    transform: scale(1.05);
+  }
+
+  /* Waveform orb inside send button */
+  .sb-wave-orb {
+    display: flex; align-items: center; gap: 2.5px;
+    height: 18px;
+  }
+  .sb-bar {
+    display: block;
+    width: 3px;
+    border-radius: 99px;
+    background: var(--accent);
+    height: 6px;
+    animation: sb-wave 1.2s ease-in-out infinite;
+  }
+  .sb-bar:nth-child(1) { animation-delay: 0s;    }
+  .sb-bar:nth-child(2) { animation-delay: 0.15s; }
+  .sb-bar:nth-child(3) { animation-delay: 0.3s;  }
+  .sb-bar:nth-child(4) { animation-delay: 0.15s; }
+  .sb-bar:nth-child(5) { animation-delay: 0s;    }
+
+  @keyframes sb-wave {
+    0%,100% { height: 4px;  opacity: 0.5; }
+    50%      { height: 16px; opacity: 1;   }
+  }
 
   /* ── Voice Agent Waveform ── */
   .va-bar {
