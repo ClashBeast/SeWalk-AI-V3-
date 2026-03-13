@@ -94,6 +94,8 @@ function updateAuthUI() {
   if (currentUser) {
     document.querySelectorAll('.mode-btn.guest-locked').forEach(b => b.classList.remove('guest-locked'));
   }
+  // Update game card lock badges
+  updateGameCardLocks();
 }
 
 async function authOAuth(provider) {
@@ -1508,6 +1510,13 @@ const _origClose   = GameManager.close.bind(GameManager);
 const _origRestart = GameManager.restart.bind(GameManager);
 
 GameManager.launch = function(name) {
+  // Guest access: Pattern Recall + Fast Focus are free. All others require sign-in.
+  const guestAllowed = ['pattern', 'focus'];
+  if (!currentUser && !guestAllowed.includes(name) && name !== 'leaderboard') {
+    showToast('🔒 Sign in to unlock all Cognitive Hub games!');
+    openAuthModal();
+    return;
+  }
   const newGames = ['nummem','stroop','mathblitz','missing','nback','snake','leaderboard'];
   if (newGames.includes(name)) {
     if (name === 'nummem')    NM.start();
@@ -2320,6 +2329,20 @@ document.addEventListener('DOMContentLoaded', () => {
     inp.onkeydown = (e) => { if (e.key === 'Enter') window.sendMsg(); };
   }
 });
+
+// ── Guest game card lock badges ───────────────────────────────
+// Runs after auth state is known; called from updateAuthUI()
+function updateGameCardLocks() {
+  const guestFreeGames = ['pattern', 'focus'];
+  document.querySelectorAll('.game-card[data-game]').forEach(card => {
+    const game = card.dataset.game;
+    if (!currentUser && !guestFreeGames.includes(game)) {
+      card.classList.add('guest-locked');
+    } else {
+      card.classList.remove('guest-locked');
+    }
+  });
+}
 
 // =============================================
 //  IMAGE GENERATION
