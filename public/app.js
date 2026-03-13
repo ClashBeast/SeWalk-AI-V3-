@@ -3082,3 +3082,261 @@ window.refreshSettingsUI = function() {
     return _origFetch.call(this, url, options);
   };
 })();
+
+// =============================================
+//  SEND BUTTON — dynamic voice / send toggle
+// =============================================
+const VOICE_ICON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
+const SEND_ICON  = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>`;
+
+function initSendBtnToggle() {
+  const input  = document.getElementById('userInput');
+  const btn    = document.getElementById('sendBtn');
+  const icon   = document.getElementById('sendBtnIcon');
+  if (!input || !btn || !icon) return;
+
+  const update = () => {
+    const hasText = input.value.trim().length > 0;
+    icon.innerHTML = hasText ? SEND_ICON : VOICE_ICON;
+    btn.classList.toggle('voice-mode', !hasText);
+    btn.title = hasText ? 'Send' : 'Open voice agent';
+  };
+  input.addEventListener('input', update);
+  update();
+}
+
+function handleSendOrVoice() {
+  const input = document.getElementById('userInput');
+  if (input && input.value.trim().length > 0) {
+    sendMsg();
+  } else {
+    openVoiceAgent();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', initSendBtnToggle);
+
+// =============================================
+//  MIC STT — speech to text into input field
+// =============================================
+let sttRecognition = null;
+let sttActive = false;
+
+function toggleMicSTT() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    showToast('⚠️ Speech recognition not supported in this browser.');
+    return;
+  }
+  if (sttActive) {
+    sttRecognition && sttRecognition.stop();
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  sttRecognition = new SR();
+  sttRecognition.continuous = false;
+  sttRecognition.interimResults = true;
+  sttRecognition.lang = 'en-US';
+
+  const btn = document.getElementById('micSttBtn');
+  const input = document.getElementById('userInput');
+
+  sttRecognition.onstart = () => {
+    sttActive = true;
+    btn.classList.add('recording');
+    showToast('🎤 Listening...');
+  };
+  sttRecognition.onresult = (e) => {
+    const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+    input.value = transcript;
+    input.dispatchEvent(new Event('input'));
+  };
+  sttRecognition.onend = () => {
+    sttActive = false;
+    btn.classList.remove('recording');
+  };
+  sttRecognition.onerror = () => {
+    sttActive = false;
+    btn.classList.remove('recording');
+    showToast('⚠️ Could not access microphone.');
+  };
+  sttRecognition.start();
+}
+
+// =============================================
+//  VOICE AGENT
+// =============================================
+let vaOpen = false;
+let vaMicOn = false;
+let vaRecognition = null;
+let vaSpeaking = false;
+let vaWaveInterval = null;
+let vaCurrentUtterance = null;
+
+function openVoiceAgent() {
+  const overlay = document.getElementById('voiceAgentOverlay');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  vaOpen = true;
+
+  // Set persona label
+  const label = document.querySelector('.mode-btn.active .label');
+  const personaEl = document.getElementById('vaPersonaLabel');
+  if (personaEl && label) personaEl.textContent = (label.textContent || 'SeWalk AI').toUpperCase();
+
+  document.getElementById('vaStatus').textContent = 'Tap the mic to start speaking';
+  document.getElementById('vaAiText').textContent = '';
+  setVAWaveform('idle');
+}
+
+function closeVoiceAgent() {
+  const overlay = document.getElementById('voiceAgentOverlay');
+  if (overlay) overlay.style.display = 'none';
+  vaOpen = false;
+  vaMicOn = false;
+  vaSpeaking = false;
+  clearInterval(vaWaveInterval);
+  vaRecognition && vaRecognition.stop();
+  window.speechSynthesis && window.speechSynthesis.cancel();
+  setVAWaveform('idle');
+  const micBtn = document.getElementById('vaMicBtn');
+  if (micBtn) micBtn.classList.remove('muted');
+}
+
+function toggleVAMic() {
+  if (vaSpeaking) {
+    // Interrupt AI speech
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    vaSpeaking = false;
+  }
+  if (vaMicOn) {
+    vaRecognition && vaRecognition.stop();
+    vaMicOn = false;
+    document.getElementById('vaMicBtn').classList.add('muted');
+    document.getElementById('vaStatus').textContent = 'Mic off — tap to speak again';
+    setVAWaveform('idle');
+  } else {
+    startVAListening();
+  }
+}
+
+function startVAListening() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    document.getElementById('vaStatus').textContent = '⚠️ Speech recognition not supported.';
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  vaRecognition = new SR();
+  vaRecognition.continuous = false;
+  vaRecognition.interimResults = false;
+  vaRecognition.lang = 'en-US';
+
+  const micBtn = document.getElementById('vaMicBtn');
+  micBtn.classList.remove('muted');
+  vaMicOn = true;
+  document.getElementById('vaStatus').textContent = 'Listening...';
+  setVAWaveform('listening');
+
+  vaRecognition.onresult = async (e) => {
+    const transcript = e.results[0][0].transcript.trim();
+    if (!transcript) return;
+    document.getElementById('vaStatus').textContent = `You: "${transcript}"`;
+    document.getElementById('vaAiText').textContent = '';
+    setVAWaveform('thinking');
+    vaMicOn = false;
+    micBtn.classList.add('muted');
+    await vaGetAIResponse(transcript);
+  };
+
+  vaRecognition.onerror = () => {
+    vaMicOn = false;
+    micBtn.classList.add('muted');
+    document.getElementById('vaStatus').textContent = '⚠️ Could not hear you. Tap mic to try again.';
+    setVAWaveform('idle');
+  };
+
+  vaRecognition.onend = () => {
+    if (vaMicOn) {
+      vaMicOn = false;
+      micBtn.classList.add('muted');
+      setVAWaveform('idle');
+    }
+  };
+
+  vaRecognition.start();
+}
+
+async function vaGetAIResponse(userText) {
+  document.getElementById('vaStatus').textContent = 'Thinking...';
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system: systemPrompts[currentMode] + ' Keep your response short and conversational — 1 to 3 sentences max since this is a voice conversation.',
+        messages: [{ role: 'user', content: userText }],
+        model: 'walk-pulse'
+      })
+    });
+    const data = await res.json();
+    const reply = data?.content?.[0]?.text || "Sorry, I didn't catch that. Can you try again?";
+    vaSpeakResponse(reply);
+  } catch {
+    vaSpeakResponse("Sorry, something went wrong. Please try again.");
+  }
+}
+
+function vaSpeakResponse(text) {
+  document.getElementById('vaAiText').textContent = text;
+  document.getElementById('vaStatus').textContent = 'Speaking...';
+  setVAWaveform('speaking');
+  vaSpeaking = true;
+
+  // Clean markdown for TTS
+  const clean = text.replace(/[#*`>_~\[\]]/g, '');
+
+  const utt = new SpeechSynthesisUtterance(clean);
+  utt.rate = 1.05;
+  utt.pitch = 1;
+
+  // Pick best available voice
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find(v =>
+    v.name.includes('Google') || v.name.includes('Neural') || v.name.includes('Natural')
+  ) || voices.find(v => v.lang.startsWith('en')) || voices[0];
+  if (preferred) utt.voice = preferred;
+
+  utt.onend = () => {
+    vaSpeaking = false;
+    setVAWaveform('idle');
+    document.getElementById('vaStatus').textContent = 'Tap the mic to respond';
+    document.getElementById('vaMicBtn').classList.remove('muted');
+  };
+
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utt);
+  vaCurrentUtterance = utt;
+}
+
+function setVAWaveform(state) {
+  const bars = document.querySelectorAll('.va-bar');
+  bars.forEach((b, i) => {
+    b.className = 'va-bar';
+    if (state === 'idle') {
+      b.style.animationDelay = `${(i * 0.09) % 0.9}s`;
+      b.classList.add('idle');
+    } else if (state === 'listening') {
+      b.style.animationDelay = `${(i * 0.05) % 0.5}s`;
+      b.classList.add('idle', 'active');
+    } else if (state === 'speaking') {
+      b.style.animationDelay = `${(i * 0.04) % 0.4}s`;
+      b.classList.add('speaking', 'active');
+    } else if (state === 'thinking') {
+      b.style.height = '8px';
+      b.style.opacity = '0.3';
+    }
+  });
+}
+
+// Load voices async (Chrome loads them async)
+window.speechSynthesis && window.speechSynthesis.addEventListener('voiceschanged', () => {});
