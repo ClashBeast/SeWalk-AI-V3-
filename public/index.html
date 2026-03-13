@@ -158,7 +158,14 @@
           <span id="modelPillName">Walk 1.0 Pulse</span>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
-        <button class="send-btn" onclick="sendMsg()">↑</button>
+        <button class="mic-stt-btn" id="micSttBtn" onclick="toggleMicSTT()" title="Voice to text">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+        <button class="send-btn" id="sendBtn" onclick="handleSendOrVoice()">
+          <span id="sendBtnIcon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+          </span>
+        </button>
       </div>
 
       <!-- Model Picker Popup -->
@@ -990,6 +997,44 @@
 
     </div>
   </div>
+</div>
+
+<!-- =============================================
+     VOICE AGENT OVERLAY
+============================================= -->
+<div id="voiceAgentOverlay" style="display:none;position:fixed;inset:0;background:rgba(8,7,0,0.97);backdrop-filter:blur(20px);z-index:9000;flex-direction:column;align-items:center;justify-content:center;gap:32px;">
+
+  <!-- Persona label -->
+  <div id="vaPersonaLabel" style="font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;color:var(--accent);letter-spacing:0.08em;opacity:0.8;"></div>
+
+  <!-- Status text -->
+  <div id="vaStatus" style="font-size:0.85rem;color:#7a7060;font-family:'DM Sans',sans-serif;min-height:20px;"></div>
+
+  <!-- Waveform visualizer -->
+  <div id="vaWaveform" style="display:flex;align-items:center;gap:4px;height:80px;">
+    <div class="va-bar"></div><div class="va-bar"></div><div class="va-bar"></div>
+    <div class="va-bar"></div><div class="va-bar"></div><div class="va-bar"></div>
+    <div class="va-bar"></div><div class="va-bar"></div><div class="va-bar"></div>
+    <div class="va-bar"></div><div class="va-bar"></div><div class="va-bar"></div>
+    <div class="va-bar"></div><div class="va-bar"></div><div class="va-bar"></div>
+    <div class="va-bar"></div><div class="va-bar"></div><div class="va-bar"></div>
+    <div class="va-bar"></div><div class="va-bar"></div>
+  </div>
+
+  <!-- AI response text -->
+  <div id="vaAiText" style="font-size:1rem;color:#e8dfc8;font-family:'DM Sans',sans-serif;max-width:520px;text-align:center;line-height:1.7;min-height:48px;padding:0 24px;"></div>
+
+  <!-- Mic + End buttons -->
+  <div style="display:flex;align-items:center;gap:32px;margin-top:12px;">
+    <button id="vaMicBtn" onclick="toggleVAMic()" style="width:72px;height:72px;border-radius:50%;border:none;background:linear-gradient(135deg,#c9a84c,#f5e17a);color:#0a0800;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 0 32px rgba(201,168,76,0.4);transition:all 0.2s;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+    </button>
+    <button onclick="closeVoiceAgent()" style="width:52px;height:52px;border-radius:50%;border:1px solid rgba(248,113,113,0.4);background:rgba(248,113,113,0.1);color:#f87171;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;" title="End conversation">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <div style="font-size:0.72rem;color:#3a3020;font-family:'DM Sans',sans-serif;">Tap mic to speak · Tap again to stop</div>
 </div>
 
 <script src="app.js"></script>
