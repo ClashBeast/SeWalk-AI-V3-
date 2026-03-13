@@ -131,6 +131,17 @@
   No TensorFlow. No API. Just math and gradient descent.
 </p>
 
+<div id="neuralRunsLeft" style="font-size:0.75rem;color:#7a7060;margin-top:-8px;">3 free predictions left</div>
+
+<!-- Guest Wall Overlay -->
+<div id="neuralGuestWall" style="display:none;position:fixed;inset:0;background:rgba(10,8,0,0.92);backdrop-filter:blur(8px);z-index:999;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px;">
+  <div style="font-size:2.5rem;">✦</div>
+  <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.4rem;color:#c9a84c;">You've used your 3 free predictions</div>
+  <div style="font-size:0.88rem;color:#7a7060;max-width:320px;line-height:1.6;">Sign in to SeWalk AI to get unlimited access to Neural, plus all Cognitive Hub games and more.</div>
+  <a href="index.html" style="display:inline-block;margin-top:8px;padding:12px 32px;border-radius:99px;background:linear-gradient(135deg,#c9a84c,#f5e17a);color:#0a0800;font-weight:700;font-size:0.9rem;text-decoration:none;">Sign In to SeWalk AI →</a>
+  <div style="font-size:0.75rem;color:#4a4030;margin-top:4px;cursor:pointer;" onclick="localStorage.removeItem('sewalk-neural-runs');location.reload();">Reset (dev only)</div>
+</div>
+
 <script>
 // ── Canvas Drawing ────────────────────────────────────
 const canvas = document.getElementById('canvas');
@@ -244,10 +255,41 @@ function softmax(arr) {
   return exps.map(x => x / sum);
 }
 
+// ── Guest Run Limit (3 predictions) ──────────────────
+const NEURAL_GUEST_LIMIT = 3;
+
+function getGuestRuns() {
+  return parseInt(localStorage.getItem('sewalk-neural-runs') || '0', 10);
+}
+function incrementGuestRuns() {
+  localStorage.setItem('sewalk-neural-runs', getGuestRuns() + 1);
+}
+function showNeuralGuestWall() {
+  document.getElementById('neuralGuestWall').style.display = 'flex';
+}
+
+// Check on load — if already over limit, show wall immediately
+window.addEventListener('DOMContentLoaded', () => {
+  if (getGuestRuns() >= NEURAL_GUEST_LIMIT) showNeuralGuestWall();
+});
+
 function predict() {
   if (!W1 || !W2 || !W3 || !W4) {
     loadWeights();
     return;
+  }
+
+  // Guest limit check
+  if (getGuestRuns() >= NEURAL_GUEST_LIMIT) {
+    showNeuralGuestWall();
+    return;
+  }
+  incrementGuestRuns();
+  const remaining = NEURAL_GUEST_LIMIT - getGuestRuns();
+  if (remaining > 0) {
+    document.getElementById('neuralRunsLeft').textContent = `${remaining} free prediction${remaining !== 1 ? 's' : ''} left`;
+  } else {
+    document.getElementById('neuralRunsLeft').textContent = 'Last free prediction used';
   }
 
   const pixels = getPixels();
