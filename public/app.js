@@ -3124,71 +3124,108 @@ function handleSendOrVoice() {
 document.addEventListener('DOMContentLoaded', initSendBtnToggle);
 
 // =============================================
-//  MIC STT — speech to text into input field
+//  MIC STT — speech to text into input field (Whisper via MediaRecorder)
 // =============================================
-let sttRecognition = null;
-let sttActive = false;
+// Works on: Chrome, Firefox, Safari iOS 14.5+, all Android browsers.
+// No more dependency on webkitSpeechRecognition.
+
+let sttActive      = false;
+let sttMediaStream = null;
+let sttRecorder    = null;
+let sttChunks      = [];
 
 async function toggleMicSTT() {
-  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    showToast('⚠️ Speech recognition not supported in this browser.');
-    return;
-  }
   if (sttActive) {
-    sttRecognition && sttRecognition.stop();
+    // User tapped again to stop — stop recorder, transcription happens in onstop
+    sttRecorder && sttRecorder.stop();
     return;
   }
-
-  // Explicitly request mic permission first — triggers browser popup
-  const allowed = await requestMicPermission();
-  if (!allowed) {
-    showToast('⚠️ Microphone permission denied. Please allow mic access in browser settings.');
-    return;
-  }
-  _startSTTRecognition();
+  await _startSTTRecording();
 }
 
-function _startSTTRecognition() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  sttRecognition = new SR();
-  sttRecognition.continuous = false;
-  sttRecognition.interimResults = true;
-  sttRecognition.lang = 'en-US';
-
-  const btn = document.getElementById('micSttBtn');
+async function _startSTTRecording() {
+  const btn   = document.getElementById('micSttBtn');
   const input = document.getElementById('userInput');
 
-  sttRecognition.onstart = () => {
-    sttActive = true;
-    btn.classList.add('recording');
-    showToast('🎤 Listening...');
-  };
-  sttRecognition.onresult = (e) => {
-    const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showToast('⚠️ Microphone not supported in this browser.');
+    return;
+  }
+
+  try {
+    sttMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    const msg = err.name === 'NotAllowedError'
+      ? '⚠️ Mic permission denied. Allow mic access in your browser settings.'
+      : '⚠️ Could not access microphone. Please check your device settings.';
+    showToast(msg);
+    return;
+  }
+
+  // Pick best supported mime
+  const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
+    .find(t => MediaRecorder.isTypeSupported(t)) || '';
+
+  sttChunks  = [];
+  sttRecorder = new MediaRecorder(sttMediaStream, mime ? { mimeType: mime } : {});
+
+  sttRecorder.ondataavailable = e => { if (e.data.size > 0) sttChunks.push(e.data); };
+
+  sttRecorder.onstop = async () => {
+    sttActive = false;
+    btn.classList.remove('recording');
+    sttMediaStream.getTracks().forEach(t => t.stop());
+    sttMediaStream = null;
+
+    const blob     = new Blob(sttChunks, { type: sttRecorder.mimeType || 'audio/webm' });
+    sttChunks      = [];
+    sttRecorder    = null;
+
+    if (blob.size < 500) {
+      showToast('⚠️ Recording was too short. Please try again.');
+      return;
+    }
+
+    btn.classList.add('recording'); // show "processing" state
+    showToast('⏳ Transcribing...');
+
+    const transcript = await _whisperTranscribe(blob);
+
+    btn.classList.remove('recording');
+
+    if (!transcript) {
+      showToast('⚠️ Could not transcribe. Please try again.');
+      return;
+    }
     input.value = transcript;
     input.dispatchEvent(new Event('input'));
+    showToast('✅ Done! Press send or keep speaking.');
   };
-  sttRecognition.onend = () => {
+
+  sttRecorder.onerror = () => {
     sttActive = false;
     btn.classList.remove('recording');
+    sttMediaStream && sttMediaStream.getTracks().forEach(t => t.stop());
+    showToast('⚠️ Recording error. Please try again.');
   };
-  sttRecognition.onerror = () => {
-    sttActive = false;
-    btn.classList.remove('recording');
-    showToast('⚠️ Could not access microphone.');
-  };
-  sttRecognition.start();
+
+  sttActive = true;
+  btn.classList.add('recording');
+  showToast('🎤 Recording… tap mic again to stop.');
+  sttRecorder.start();
 }
 
 // =============================================
-//  VOICE AGENT
+//  VOICE AGENT (Whisper via MediaRecorder)
 // =============================================
-let vaOpen = false;
-let vaMicOn = false;
-let vaRecognition = null;
-let vaSpeaking = false;
-let vaWaveInterval = null;
+let vaOpen             = false;
+let vaMicOn            = false;
+let vaSpeaking         = false;
+let vaWaveInterval     = null;
 let vaCurrentUtterance = null;
+let vaMediaStream      = null;
+let vaRecorder         = null;
+let vaChunks           = [];
 
 function openVoiceAgent() {
   const overlay = document.getElementById('voiceAgentOverlay');
@@ -3197,104 +3234,148 @@ function openVoiceAgent() {
   vaOpen = true;
 
   // Set persona label
-  const label = document.querySelector('.mode-btn.active .label');
+  const label     = document.querySelector('.mode-btn.active .label');
   const personaEl = document.getElementById('vaPersonaLabel');
   if (personaEl && label) personaEl.textContent = (label.textContent || 'SeWalk AI').toUpperCase();
 
-  document.getElementById('vaStatus').textContent = 'Tap the mic to start speaking';
-  document.getElementById('vaAiText').textContent = '';
+  document.getElementById('vaStatus').textContent   = 'Tap the mic to start speaking';
+  document.getElementById('vaAiText').textContent   = '';
   setVAWaveform('idle');
 }
 
 function closeVoiceAgent() {
   const overlay = document.getElementById('voiceAgentOverlay');
   if (overlay) overlay.style.display = 'none';
-  vaOpen = false;
-  vaMicOn = false;
+  vaOpen     = false;
+  vaMicOn    = false;
   vaSpeaking = false;
   clearInterval(vaWaveInterval);
-  vaRecognition && vaRecognition.stop();
+
+  // Stop any active recording
+  if (vaRecorder && vaRecorder.state !== 'inactive') vaRecorder.stop();
+  if (vaMediaStream) vaMediaStream.getTracks().forEach(t => t.stop());
+  vaMediaStream = null;
+  vaRecorder    = null;
+  vaChunks      = [];
+
   window.speechSynthesis && window.speechSynthesis.cancel();
   setVAWaveform('idle');
+
   const micBtn = document.getElementById('vaMicBtn');
   if (micBtn) micBtn.classList.remove('muted');
 }
 
 function toggleVAMic() {
   if (vaSpeaking) {
-    // Interrupt AI speech
     window.speechSynthesis && window.speechSynthesis.cancel();
     vaSpeaking = false;
   }
   if (vaMicOn) {
-    vaRecognition && vaRecognition.stop();
-    vaMicOn = false;
-    document.getElementById('vaMicBtn').classList.add('muted');
-    document.getElementById('vaStatus').textContent = 'Mic off — tap to speak again';
-    setVAWaveform('idle');
+    // Stop recording → triggers onstop → transcribes
+    vaRecorder && vaRecorder.state !== 'inactive' && vaRecorder.stop();
   } else {
     startVAListening();
   }
 }
 
 async function startVAListening() {
-  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    document.getElementById('vaStatus').textContent = '⚠️ Speech recognition not supported.';
+  const micBtn = document.getElementById('vaMicBtn');
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    document.getElementById('vaStatus').textContent = '⚠️ Microphone not supported in this browser.';
+    micBtn.classList.add('muted');
     return;
   }
 
-  // Explicitly request mic permission first — triggers browser popup
-  const allowed = await requestMicPermission();
-  if (!allowed) {
-    document.getElementById('vaStatus').textContent = '⚠️ Mic permission denied. Allow mic in browser settings.';
-    document.getElementById('vaMicBtn').classList.add('muted');
+  try {
+    vaMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    const msg = err.name === 'NotAllowedError'
+      ? '⚠️ Mic permission denied. Allow mic in your browser settings.'
+      : '⚠️ Cannot access mic. Check device settings.';
+    document.getElementById('vaStatus').textContent = msg;
+    micBtn.classList.add('muted');
     vaMicOn = false;
     setVAWaveform('idle');
     return;
   }
-  _startVARecognition();
-}
 
-function _startVARecognition() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  vaRecognition = new SR();
-  vaRecognition.continuous = false;
-  vaRecognition.interimResults = false;
-  vaRecognition.lang = 'en-US';
+  const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
+    .find(t => MediaRecorder.isTypeSupported(t)) || '';
 
-  const micBtn = document.getElementById('vaMicBtn');
-  micBtn.classList.remove('muted');
-  vaMicOn = true;
-  document.getElementById('vaStatus').textContent = 'Listening...';
-  setVAWaveform('listening');
+  vaChunks   = [];
+  vaRecorder = new MediaRecorder(vaMediaStream, mime ? { mimeType: mime } : {});
 
-  vaRecognition.onresult = async (e) => {
-    const transcript = e.results[0][0].transcript.trim();
-    if (!transcript) return;
-    document.getElementById('vaStatus').textContent = `You: "${transcript}"`;
-    document.getElementById('vaAiText').textContent = '';
-    setVAWaveform('thinking');
+  vaRecorder.ondataavailable = e => { if (e.data.size > 0) vaChunks.push(e.data); };
+
+  vaRecorder.onstop = async () => {
     vaMicOn = false;
     micBtn.classList.add('muted');
+    vaMediaStream.getTracks().forEach(t => t.stop());
+    vaMediaStream = null;
+
+    const blob  = new Blob(vaChunks, { type: vaRecorder.mimeType || 'audio/webm' });
+    vaChunks    = [];
+    vaRecorder  = null;
+
+    if (blob.size < 500) {
+      document.getElementById('vaStatus').textContent = '⚠️ Too short — tap mic and speak, then tap again.';
+      setVAWaveform('idle');
+      return;
+    }
+
+    document.getElementById('vaStatus').textContent  = 'Transcribing...';
+    document.getElementById('vaAiText').textContent  = '';
+    setVAWaveform('thinking');
+
+    const transcript = await _whisperTranscribe(blob);
+
+    if (!transcript) {
+      document.getElementById('vaStatus').textContent = '⚠️ Couldn\'t hear you. Tap mic to try again.';
+      setVAWaveform('idle');
+      return;
+    }
+
+    document.getElementById('vaStatus').textContent = `You: "${transcript}"`;
     await vaGetAIResponse(transcript);
   };
 
-  vaRecognition.onerror = () => {
+  vaRecorder.onerror = () => {
     vaMicOn = false;
     micBtn.classList.add('muted');
-    document.getElementById('vaStatus').textContent = '⚠️ Could not hear you. Tap mic to try again.';
+    if (vaMediaStream) vaMediaStream.getTracks().forEach(t => t.stop());
+    document.getElementById('vaStatus').textContent = '⚠️ Recording error. Tap mic to try again.';
     setVAWaveform('idle');
   };
 
-  vaRecognition.onend = () => {
-    if (vaMicOn) {
-      vaMicOn = false;
-      micBtn.classList.add('muted');
-      setVAWaveform('idle');
-    }
-  };
+  micBtn.classList.remove('muted');
+  vaMicOn = true;
+  document.getElementById('vaStatus').textContent = '🎤 Listening… tap mic to stop & send';
+  setVAWaveform('listening');
+  vaRecorder.start();
+}
 
-  vaRecognition.start();
+// =============================================
+//  SHARED WHISPER TRANSCRIPTION HELPER
+// =============================================
+async function _whisperTranscribe(audioBlob) {
+  try {
+    const res = await fetch('/api/transcribe', {
+      method: 'POST',
+      headers: { 'Content-Type': audioBlob.type || 'audio/webm' },
+      body: audioBlob,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error('Transcribe error:', err);
+      return null;
+    }
+    const data = await res.json();
+    return data.transcript || null;
+  } catch (e) {
+    console.error('Transcribe fetch failed:', e);
+    return null;
+  }
 }
 
 async function vaGetAIResponse(userText) {
@@ -3310,7 +3391,7 @@ async function vaGetAIResponse(userText) {
         model: 'walk-pulse'
       })
     });
-    const data = await res.json();
+    const data  = await res.json();
     const reply = data?.content?.[0]?.text || "Sorry, I didn't catch that. Can you try again?";
     vaSpeakResponse(reply);
   } catch {
@@ -3319,24 +3400,32 @@ async function vaGetAIResponse(userText) {
 }
 
 function vaSpeakResponse(text) {
-  document.getElementById('vaAiText').textContent = text;
-  document.getElementById('vaStatus').textContent = 'Speaking...';
+  document.getElementById('vaAiText').textContent  = text;
+  document.getElementById('vaStatus').textContent  = 'Speaking...';
   setVAWaveform('speaking');
   vaSpeaking = true;
 
-  // Clean markdown for TTS
+  // Strip markdown for TTS
   const clean = text.replace(/[#*`>_~\[\]]/g, '');
 
-  const utt = new SpeechSynthesisUtterance(clean);
-  utt.rate = 1.05;
-  utt.pitch = 1;
+  const utt   = new SpeechSynthesisUtterance(clean);
+  utt.rate    = 1.05;
+  utt.pitch   = 1;
 
-  // Pick best available voice
-  const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find(v =>
-    v.name.includes('Google') || v.name.includes('Neural') || v.name.includes('Natural')
-  ) || voices.find(v => v.lang.startsWith('en')) || voices[0];
-  if (preferred) utt.voice = preferred;
+  // Load best available voice (Chrome delivers these async)
+  const pickVoice = () => {
+    const voices    = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v =>
+      v.name.includes('Google') || v.name.includes('Neural') || v.name.includes('Natural')
+    ) || voices.find(v => v.lang.startsWith('en')) || voices[0];
+    if (preferred) utt.voice = preferred;
+  };
+
+  if (window.speechSynthesis.getVoices().length > 0) {
+    pickVoice();
+  } else {
+    window.speechSynthesis.addEventListener('voiceschanged', pickVoice, { once: true });
+  }
 
   utt.onend = () => {
     vaSpeaking = false;
@@ -3356,30 +3445,22 @@ function setVAWaveform(state) {
     b.className = 'va-bar';
     if (state === 'idle') {
       b.style.animationDelay = `${(i * 0.09) % 0.9}s`;
+      b.style.height = '';
+      b.style.opacity = '';
       b.classList.add('idle');
     } else if (state === 'listening') {
       b.style.animationDelay = `${(i * 0.05) % 0.5}s`;
+      b.style.height = '';
+      b.style.opacity = '';
       b.classList.add('idle', 'active');
     } else if (state === 'speaking') {
       b.style.animationDelay = `${(i * 0.04) % 0.4}s`;
+      b.style.height = '';
+      b.style.opacity = '';
       b.classList.add('speaking', 'active');
     } else if (state === 'thinking') {
-      b.style.height = '8px';
-      b.style.opacity = '0.3';
+      b.style.height   = '8px';
+      b.style.opacity  = '0.3';
     }
   });
 }
-
-// Shared mic permission requester
-async function requestMicPermission() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    stream.getTracks().forEach(t => t.stop());
-    return true;
-  } catch(e) {
-    return false;
-  }
-}
-
-// Load voices async (Chrome loads them async)
-window.speechSynthesis && window.speechSynthesis.addEventListener('voiceschanged', () => {});
