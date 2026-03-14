@@ -3102,25 +3102,11 @@ function initSendBtnToggle() {
   const icon   = document.getElementById('sendBtnIcon');
   if (!input || !btn || !icon) return;
 
-  // Tiny character counter — fades in while typing, turns red near limit
-  let charCounter = document.getElementById('inputCharCounter');
-  if (!charCounter) {
-    charCounter = document.createElement('span');
-    charCounter.id = 'inputCharCounter';
-    charCounter.style.cssText = 'position:absolute;bottom:6px;right:52px;font-size:11px;opacity:0;transition:opacity 0.2s;pointer-events:none;color:var(--color-text-tertiary);';
-    input.parentElement.style.position = 'relative';
-    input.parentElement.appendChild(charCounter);
-  }
-
   const update = () => {
-    const len = input.value.length;
     const hasText = input.value.trim().length > 0;
     icon.innerHTML = hasText ? SEND_ICON : VOICE_ICON;
     btn.classList.toggle('voice-mode', !hasText);
     btn.title = hasText ? 'Send' : 'Open voice agent';
-    charCounter.textContent = len > 0 ? len : '';
-    charCounter.style.opacity = len > 0 ? '1' : '0';
-    charCounter.style.color = len > 3000 ? 'var(--color-text-danger)' : 'var(--color-text-tertiary)';
   };
   input.addEventListener('input', update);
   update();
